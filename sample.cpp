@@ -5,6 +5,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
+
 #ifdef WIN32
 #include <windows.h>
 #pragma warning(disable:4996)
@@ -14,7 +15,23 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include "glut.h"
+#include "cessna.550"
 
+// propeller parameters:
+float Time;
+float BladeAngle;
+
+GLuint front;
+GLuint left;
+GLuint cube;
+
+// propeller parameters:
+
+#define PROPELLER_RADIUS	 5.0
+#define PROPELLER_WIDTH		 0.4
+
+#define PROPELLER_RADIUS2	 3.0
+#define PROPELLER_WIDTH2	 0.4
 
 //	This is a sample OpenGL / GLUT program
 //
@@ -182,6 +199,7 @@ int		WhichColor;				// index into Colors[ ]
 int		WhichProjection;		// ORTHO or PERSP
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
+int     View;
 
 
 // function prototypes:
@@ -273,12 +291,17 @@ main( int argc, char *argv[ ] )
 void
 Animate( )
 {
+	
+	//int tailSpinCount = 0;
+#define MS_IN_THE_ANIMATION_CYCLE	10000
+	
 	// put animation stuff in here -- change some global variables
 	// for Display( ) to find:
-
-	// force a call to Display( ) next time it is convenient:
-
-	glutSetWindow( MainWindow );
+	int ms = glutGet(GLUT_ELAPSED_TIME);	// milliseconds
+	ms %= MS_IN_THE_ANIMATION_CYCLE;
+	Time = (float)ms / (float)MS_IN_THE_ANIMATION_CYCLE *4;        // [ 0., 1. )
+	BladeAngle = Time * 360.;
+	glutSetWindow(MainWindow);
 	glutPostRedisplay( );
 }
 
@@ -327,10 +350,10 @@ Display( )
 
 	glMatrixMode( GL_PROJECTION );
 	glLoadIdentity( );
-	if( WhichProjection == ORTHO )
+	/*if( WhichProjection == ORTHO )
 		glOrtho( -2.f, 2.f,     -2.f, 2.f,     0.1f, 1000.f );
-	else
-		gluPerspective( 70.f, 1.f,	0.1f, 1000.f );
+	else*/
+	gluPerspective( 70.f, 1.f,	0.1f, 1000.f );
 
 
 	// place the objects into the scene:
@@ -341,14 +364,15 @@ Display( )
 
 	// set the eye position, look-at position, and up-vector:
 
-	gluLookAt( 0.f, 0.f, 3.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
-
-
+	//gluLookAt( 0.f, 0.f, 3.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
+	
+	
 	// rotate the scene:
 
 	glRotatef( (GLfloat)Yrot, 0.f, 1.f, 0.f );
 	glRotatef( (GLfloat)Xrot, 1.f, 0.f, 0.f );
 
+	
 
 	// uniformly scale the scene:
 
@@ -373,7 +397,15 @@ Display( )
 		glDisable( GL_FOG );
 	}
 
-
+	if (View != 0) {
+		//inside
+		gluLookAt(0., 1.2, 1.,   0., 5., 10.,   0.f, 1.f, 0.f);
+			}
+	else {
+		//outside
+		gluLookAt(32., 30., 30.,   0., 0., 0.,   0., 1., 0.);
+		//gluLookAt(10., 6., 15., 0., 0., 0., 0., 1., 0.);
+	}
 	// possibly draw the axes:
 
 	if( AxesOn != 0 )
@@ -391,6 +423,56 @@ Display( )
 	// draw the box object by calling up its display list:
 
 	glCallList( BoxList );
+
+	glPushMatrix();
+	glCallList(cube);
+	glPopMatrix();
+
+	//front
+	glPushMatrix();
+	//---------------
+
+	//front = glGenLists(1);
+	//glNewList(front, GL_COMPILE);
+
+	glPushMatrix();
+	glTranslatef(0., 1.5, 7.);
+	//glRotatef(BladeAngle * 3., 0., 0., 1.);
+	glRotatef(BladeAngle*3, 0., 0., 1.);
+	glBegin(GL_TRIANGLES);
+	glColor3f(1., 1., 1.);
+	glScalef(1., 1., 1.);
+	glVertex2f(PROPELLER_RADIUS, PROPELLER_WIDTH / 2.);
+	glVertex2f(0., 0.);
+	glVertex2f(PROPELLER_RADIUS, -PROPELLER_WIDTH / 2.);
+
+	glVertex2f(-PROPELLER_RADIUS, -PROPELLER_WIDTH / 2.);
+	glVertex2f(0., 0.);
+	glVertex2f(-PROPELLER_RADIUS, PROPELLER_WIDTH / 2.);
+	glEnd();
+	glEndList();
+	glPopMatrix();
+
+	//glCallList(front);
+	//glPopMatrix();
+
+	//left
+	glPushMatrix();
+	glTranslatef(-10.f, 3.f, 0.);
+	glRotatef(-90, 1., 0., 0.);
+	glRotatef(BladeAngle * 6., 0., 0., 1.);
+	glScalef(1., 1., 1.);
+	glCallList(left);
+	glPopMatrix();
+
+	//right
+	glPushMatrix();
+	glTranslatef(10.f, 3.f, 0.);
+	glRotatef(90, 1., 0., 0.);
+	glRotatef(BladeAngle * 6., 0., 0., 1.);
+	glScalef(1., 1., 1.);
+	glCallList(left);
+	glPopMatrix();
 
 #ifdef DEMO_Z_FIGHTING
 	if( DepthFightingOn != 0 )
@@ -462,7 +544,13 @@ DoColorMenu( int id )
 	glutPostRedisplay( );
 }
 
-
+void
+DoViewMenu(int id)
+{
+	View = id;
+	glutSetWindow(MainWindow);
+	glutPostRedisplay();
+}
 void
 DoDebugMenu( int id )
 {
@@ -613,6 +701,10 @@ InitMenus( )
 	glutAddMenuEntry( "Off",  0 );
 	glutAddMenuEntry( "On",   1 );
 
+	int Perspectivemenu = glutCreateMenu(DoViewMenu);
+	glutAddMenuEntry("Outside", 0);
+	glutAddMenuEntry("Inside", 1);
+
 	int depthbuffermenu = glutCreateMenu( DoDepthBufferMenu );
 	glutAddMenuEntry( "Off",  0 );
 	glutAddMenuEntry( "On",   1 );
@@ -643,6 +735,7 @@ InitMenus( )
 
 	glutAddSubMenu(   "Depth Cue",     depthcuemenu);
 	glutAddSubMenu(   "Projection",    projmenu );
+	glutAddSubMenu("Perspective", Perspectivemenu);
 	glutAddMenuEntry( "Reset",         RESET );
 	glutAddSubMenu(   "Debug",         debugmenu);
 	glutAddMenuEntry( "Quit",          QUIT );
@@ -752,9 +845,9 @@ InitGraphics( )
 void
 InitLists( )
 {
-	float dx = BOXSIZE / 4.f;
-	float dy = BOXSIZE / 4.f;
-	float dz = BOXSIZE / 4.f;
+	float dx = 8.0;
+	float dy = 8.0;
+	float dz = 8.0;
 	glutSetWindow( MainWindow );
 
 	// create the object:
@@ -762,231 +855,125 @@ InitLists( )
 	BoxList = glGenLists( 1 );
 	glNewList( BoxList, GL_COMPILE );
 
-	glBegin( GL_QUADS );
-	//glBegin(GL_LINE_LOOP);
-			
-			glColor3f( 1., 0., 0. );
 
-				glNormal3f( 1., 0., 0. );
-					glVertex3f(  dx, -dy, dz);
-					glVertex3f(  dx, -dy, -dz );
-					glVertex3f(  dx,  dy, -dz );
-					glVertex3f(  dx,  dy,  dz );
-			glColor3f(0., 1., 1.);
-					
-				glNormal3f(-1., 0., 0.);
-					glVertex3f( -2 * dx, -dy,  dz);
-					glVertex3f( -2 * dx,  dy,  dz );
-					glVertex3f( -2 * dx,  dy, -dz );
-					glVertex3f( -2 * dx, -dy, -dz );
-					
-			
-			glColor3f( 0., 1., 0. );
+	//add code - draw a wireframe Cessna
+	int i;
+	struct point* p0, * p1, * p2;
+	struct tri* tp;
+	float p01[3], p02[3], n[3];
 
-				glNormal3f(0., 1., 0.);
-					glVertex3f( -2*dx,  dy,  dz );
-					glVertex3f(  dx,  dy,  dz );
-					glVertex3f(  dx,  dy, -dz );
-					glVertex3f( -2 * dx,  dy, -dz );
-					
-			glColor3f(1., 1., 0.);
-				glNormal3f(0., -1., 0.);
-					glVertex3f( -2 * dx, -dy,  dz);
-					glVertex3f( -2 * dx, -dy, -dz );
-					glVertex3f(  dx, -dy, -dz );
-					glVertex3f(  dx, -dy,  dz );
-					
-			glColor3f(0., 0., 1.);
+	glPushMatrix();
+	glRotatef(-7., 0., 1., 0.);
+	glTranslatef(0., -1., 0.);
+	glRotatef(97., 0., 1., 0.);
+	glRotatef(-15., 0., 0., 1.);
+	glBegin(GL_TRIANGLES);
+	for (i = 0, tp = CESSNAtris; i < CESSNAntris; i++, tp++)
+	{
+		p0 = &CESSNApoints[tp->p0];
+		p1 = &CESSNApoints[tp->p1];
+		p2 = &CESSNApoints[tp->p2];
 
-				glNormal3f(0., 0., 1.);
-					glVertex3f(-2*dx, -dy, dz);
-					glVertex3f( dx, -dy, dz);
-					glVertex3f( dx,  dy, dz);
-					glVertex3f(-2*dx,  dy, dz);
-			glColor3f( 1., 0., 1. );
-				glNormal3f(0., 0., -1.);
-					glVertex3f(-2*dx, -dy, -dz);
-					glVertex3f(-2 * dx,  dy, -dz);
-					glVertex3f( dx,  dy, -dz);
-					glVertex3f( dx, -dy, -dz);
-			glColor3f(0., 0., 1.);
-				glNormal3f(0., 0., -0.5);
-					glVertex3f(-2 * dx, dy, -dz);
-					glVertex3f(-2 * dx, 2*dy, -dz);
-					glVertex3f(dx, 2*dy, -dz);
-					glVertex3f(dx, dy, -dz);
-					
-			glColor3f(1., 1., 0.);
-				glNormal3f(0., 0., 1.);
-					glVertex3f(-2 * dx, dy, 0);
-					glVertex3f(dx, dy, 0);
-					glVertex3f(dx, 2*dy, 0);
-					glVertex3f(-2 * dx, 2*dy, 0);
+		// fake "lighting" from above:
 
-			glColor3f(0., 1., 0.);
+		p01[0] = p1->x - p0->x;
+		p01[1] = p1->y - p0->y;
+		p01[2] = p1->z - p0->z;
+		p02[0] = p2->x - p0->x;
+		p02[1] = p2->y - p0->y;
+		p02[2] = p2->z - p0->z;
+		Cross(p01, p02, n);
+		Unit(n, n);
+		n[1] = fabs(n[1]);
+		glColor3f(n[1], .5f * n[1], 0.);
 
-				glNormal3f(0., 1., 0.);
-					glVertex3f(-2 * dx, 2*dy, 0);
-					glVertex3f(dx, 2 * dy, 0);
-					glVertex3f(dx, 2 * dy, -dz);
-					glVertex3f(-2 * dx, 2 * dy, -dz);
+		glVertex3f(p0->x, p0->y, p0->z);
+		glVertex3f(p1->x, p1->y, p1->z);
+		glVertex3f(p2->x, p2->y, p2->z);
+	}
+	glEnd();
+	glPopMatrix();
 
-			glColor3f(0., 1., 1.);
-				glNormal3f(0., -1., 0.);
-					glVertex3f(-2 * dx, dy, 0);
-					glVertex3f(-2 * dx, dy, -dz);
-					glVertex3f(dx, dy, -dz);
-					glVertex3f(dx, dy, 0);
+	//cube
+	cube = glGenLists(1);
+	glNewList(cube, GL_COMPILE);
+	glPushMatrix();
+	glBegin(GL_QUADS);
 
+	glColor3f(1., 0., 0.);
 
-			glColor3f(1., 1., 0.);
+	glNormal3f(1., 0., 0.);
+	glVertex3f(dx, 0, 3.5 * dz);
+	glVertex3f(dx, 0, 3 * dz);
+	glVertex3f(dx, dy, 3 * dz);
+	glVertex3f(dx,  dy, 3.5 * dz);
 
-				glNormal3f(1., 0., 0.);
-					glVertex3f(dx, dy, 0);
-					glVertex3f(dx, dy, -dz);
-					glVertex3f(dx, 2 * dy, -dz);
-					glVertex3f(dx, 2 * dy, 0);
+	glNormal3f(-1., 0., 0.);
+	glVertex3f(-dx, 0, 3.5 * dz);
+	glVertex3f(-dx, dy, 3.5 * dz);
+	glVertex3f(-dx, dy, 3 * dz);
+	glVertex3f(-dx, 0, 3 * dz);
 
-			glColor3f(1., 1., 1.);
+	glColor3f(0., 1., 0.);
 
-				glNormal3f(-1., 0., 0.);
-					glVertex3f(-2 * dx, dy, 0);
-					glVertex3f(-2 * dx, 2 * dy, 0);
-					glVertex3f(-2 * dx, 2 * dy, -dz);
-					glVertex3f(-2 * dx, dy, -dz);
+	glNormal3f(0., 1., 0.);
+	glVertex3f(-dx, dy, 3.5 * dz);
+	glVertex3f(dx,  dy, 3.5 * dz);
+	glVertex3f(dx,  dy, 3 * dz);
+	glVertex3f(-dx, dy, 3 * dz);
 
+	glNormal3f(0., -1., 0.);
+	glVertex3f(-dx, 0, 3.5 * dz);
+	glVertex3f(-dx, 0, 3 * dz);
+	glVertex3f(dx, 0, 3 * dz);
+	glVertex3f(dx, 0, 3.5 * dz);
 
+	glColor3f(0., 0., 1.);
 
-		//make a smaller one
-					glColor3f(1., 0., 0.);
+	glNormal3f(0., 0., 1.);
+	glVertex3f(-dx, 0, 3.5 * dz);
+	glVertex3f(dx, 0, 3.5 * dz);
+	glVertex3f(dx, dy, 3.5 * dz);
+	glVertex3f(-dx, dy, 3.5 * dz);
 
-					glNormal3f(1., 0., 0.);
-					glVertex3f(4*dx, -dy, dz);
-					glVertex3f(4 * dx, -dy, -dz);
-					glVertex3f(4 * dx, dy, -dz);
-					glVertex3f(4 * dx, dy, dz);
-					glColor3f(0., 1., 1.);
+	glNormal3f(0., 0., -1.);
+	glVertex3f(-dx, 0, 3 * dz);
+	glVertex3f(-dx, dy, 3 * dz);
+	glVertex3f(dx, dy, 3 * dz);
+	glVertex3f(dx, 0, 3 * dz);
 
-					glNormal3f(-1., 0., 0.);
-					glVertex3f(3 * dx, -dy, dz);
-					glVertex3f(3 * dx, dy, dz);
-					glVertex3f(3 * dx, dy, -dz);
-					glVertex3f(3 * dx, -dy, -dz);
+	glEnd();
+
+	glEndList();
+
+	glPopMatrix();
+
+	//front one
 
 
-					glColor3f(0., 1., 0.);
+	//left and right
+	left = glGenLists(1);
+	glNewList(left, GL_COMPILE);
+		glColor3f(1., 1., 1.);
+	glPushMatrix();
+		glBegin(GL_TRIANGLES);
+		glVertex2f(PROPELLER_RADIUS2, PROPELLER_WIDTH / 2.);
+		glVertex2f(0., 0.);
+		glVertex2f(PROPELLER_RADIUS2, -PROPELLER_WIDTH / 2.);
 
-					glNormal3f(0., 1., 0.);
-					glVertex3f(3 * dx, dy, dz);
-					glVertex3f(4 * dx, dy, dz);
-					glVertex3f(4 * dx, dy, -dz);
-					glVertex3f(3 * dx, dy, -dz);
+		glVertex2f(-PROPELLER_RADIUS2, -PROPELLER_WIDTH / 2.);
+		glVertex2f(0., 0.);
+		glVertex2f(-PROPELLER_RADIUS2, PROPELLER_WIDTH / 2.);
+	glEnd();
+	glEndList();
+	glPopMatrix();
+	//================================
+	
 
-					glColor3f(1., 1., 0.);
-					glNormal3f(0., -1., 0.);
-					glVertex3f(3 * dx, -dy, dz);
-					glVertex3f(3 * dx, -dy, -dz);
-					glVertex3f(4 * dx, -dy, -dz);
-					glVertex3f(4 * dx, -dy, dz);
+	
 
-					glColor3f(0., 0., 1.);
-
-					glNormal3f(0., 0., 1.);
-					glVertex3f(3 * dx, -dy, dz);
-					glVertex3f(4 * dx, -dy, dz);
-					glVertex3f(4 * dx, dy, dz);
-					glVertex3f(3 * dx, dy, dz);
-					glColor3f(1., 0., 1.);
-					glNormal3f(0., 0., -1.);
-					glVertex3f(3 * dx, -dy, -dz);
-					glVertex3f(3 * dx, dy, -dz);
-					glVertex3f(4 * dx, dy, -dz);
-					glVertex3f(4 * dx, -dy, -dz);
-
-
-
-					glColor3f(0., 0., 1.);
-					glNormal3f(0., 0., -0.5);
-					glVertex3f(3 * dx, dy, -dz);
-					glVertex3f(3 * dx, 2 * dy, -dz);
-					glVertex3f(4 * dx, 2 * dy, -dz);
-					glVertex3f(4 * dx, dy, -dz);
-
-					glColor3f(1., 1., 0.);
-					glNormal3f(0., 0., 1.);
-					glVertex3f(3 * dx, dy, 0);
-					glVertex3f(4 * dx, dy, 0);
-					glVertex3f(4 * dx, 2 * dy, 0);
-					glVertex3f(3 * dx, 2 * dy, 0);
-
-					glColor3f(0., 1., 0.);
-
-					glNormal3f(0., 1., 0.);
-					glVertex3f(3 * dx, 2 * dy, 0);
-					glVertex3f(4 * dx, 2 * dy, 0);
-					glVertex3f(4 * dx, 2 * dy, -dz);
-					glVertex3f(3 * dx, 2 * dy, -dz);
-
-					glColor3f(0., 1., 1.);
-					glNormal3f(0., -1., 0.);
-					glVertex3f(3 * dx, dy, 0);
-					glVertex3f(3 * dx, dy, -dz);
-					glVertex3f(4 * dx, dy, -dz);
-					glVertex3f(4 * dx, dy, 0);
-
-
-					glColor3f(1., 1., 0.);
-
-					glNormal3f(1., 0., 0.);
-					glVertex3f(4 * dx, dy, 0);
-					glVertex3f(4 * dx, dy, -dz);
-					glVertex3f(4 * dx, 2 * dy, -dz);
-					glVertex3f(4 * dx, 2 * dy, 0);
-
-					glColor3f(1., 1., 1.);
-
-					glNormal3f(-1., 0., 0.);
-					glVertex3f(3 * dx, dy, 0);
-					glVertex3f(3 * dx, 2 * dy, 0);
-					glVertex3f(3 * dx, 2 * dy, -dz);
-					glVertex3f(3 * dx, dy, -dz);
-
-
-			//connect
-
-
-					glColor3f(0., 1., 0.);
-
-					glNormal3f(0., 1., 0.);
-					glVertex3f(1 * dx, 0.5 * dy, 0);
-					glVertex3f(3 * dx, 0.5 * dy, 0);
-					glVertex3f(3 * dx, 0.5 * dy, -dz);
-					glVertex3f(1 * dx, 0.5 * dy, -dz);
-
-					glColor3f(0., 1., 1.);
-					glNormal3f(0., -1., 0.);
-					glVertex3f(1 * dx, -0.5*dy, 0);
-					glVertex3f(1 * dx, -0.5 * dy, -dz);
-					glVertex3f(3 * dx, -0.5 * dy, -dz);
-					glVertex3f(3 * dx, -0.5 * dy, 0);
-
-					glColor3f(1., 0., 0.);
-					glNormal3f(0., 0., -0.5);
-					glVertex3f(1 * dx, -0.5 * dy, -dz);
-					glVertex3f(1 * dx, 0.5 * dy, -dz);
-					glVertex3f(3 * dx, 0.5 * dy, -dz);
-					glVertex3f(3 * dx, -0.5 * dy, -dz);
-
-					glColor3f(1., 1., 0.);
-					glNormal3f(0., 0., 1.);
-					glVertex3f(1 * dx, -0.5 * dy, 0);
-					glVertex3f(3 * dx, -0.5*dy, 0);
-					glVertex3f(3 * dx, 0.5 * dy, 0);
-					glVertex3f(1 * dx, 0.5 * dy, 0);
-		glEnd( );
-
-	glEndList( );
-
+	//=====================
+	
 
 	// create the axes:
 
@@ -1148,6 +1135,7 @@ Reset( )
 	WhichColor = WHITE;
 	WhichProjection = PERSP;
 	Xrot = Yrot = 0.;
+	View = 0;
 }
 
 
