@@ -1,1 +1,1 @@
-My all projects from CS450-intro to computer graphics in OSU
+CS450-intro to computer graphics in OSU
